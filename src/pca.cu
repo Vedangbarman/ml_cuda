@@ -18,7 +18,7 @@ vector<double> compute_mean(const vector<vector<double>> matrix){
 
     vector<double> mean(cols,0.0);
 
-    for(size_t i = 0;i<cols;++i){
+    for(size_t i = 0;i<rows;++i){
         for(size_t j = 0;j<cols;++j){
             mean[j] += matrix[i][j];
         }
@@ -53,7 +53,7 @@ vector<double> compute_variance(const vector<vector<double>> centered_matrix){
     size_t rows = centered_matrix.size();
     size_t cols = centered_matrix[0].size();
 
-    vector<double> variance;
+    vector<double> variance(0.0);
 
     for(size_t i = 0; i<rows; i++){
         for(size_t j = 0; j<cols; ++j){
@@ -62,7 +62,7 @@ vector<double> compute_variance(const vector<vector<double>> centered_matrix){
     }
     for(size_t j = 0; j<= variance.size(); j++){
         variance[j] = pow(variance[j],2);
-        variance[j] = variance[j]/rows-1;
+        variance[j] = variance[j]/(rows-1);
     }
 
     return variance;
@@ -74,7 +74,7 @@ vector<double> compute_covariance(const vector<vector<double>> centered_matrix){
     size_t rows = centered_matrix.size();
     size_t cols = centered_matrix[0].size();
 
-    vector<double> covariance;
+    vector<double> covariance(0.0);
 
     for(size_t i = 0; i<rows; i++){
         for(size_t j = 0; j<cols ; j++){
@@ -97,7 +97,7 @@ vector<vector<double>> create_matrix(const vector<vector<double>> matrix){
 
     size_t rows = matrix.size();
     size_t cols = matrix[0].size();
-    vector<vector<double>> cov_matrix;
+    vector<vector<double>> cov_matrix(rows,vector<double>(cols,0.0));
     vector<double> mean = compute_mean(vector<vector<double>> (matrix));
 
     vector<vector<double>> center = center_data(vector<vector<double>> (matrix), vector<double> (mean));
@@ -126,7 +126,7 @@ vector<double> csr_values_finder(vector<vector<double>>(cov_matrix)){
     size_t rows = cov_matrix.size();
     size_t cols = cov_matrix[0].size();
 
-    vector<double> csr_values;
+    vector<double> csr_values(0.0);
 
     for(int i = 0; i<rows; i++){
         for(int j = 0; j<cols; j++){
@@ -143,7 +143,7 @@ vector<double> csr_row_finder(vector<vector<double>>(cov_matrix)){
     size_t rows = cov_matrix.size();
     size_t cols = cov_matrix[0].size();
 
-    vector<double> csr_rows;
+    vector<double> csr_rows(0.0);
     for(int i = 0; i<rows; i++){
         for(int j = 0; j<cols; j++){
             if(cov_matrix[i][j] != 0 ){
@@ -160,7 +160,7 @@ vector<double> csr_col_finder(vector<vector<double>>(cov_matrix)){
     size_t rows = cov_matrix.size();
     size_t cols = cov_matrix[0].size();
 
-    vector<double> csr_cols;
+    vector<double> csr_cols(0.0);
     for(int i = 0; i<rows; i++){
         for(int j = 0; j<cols; j++){
             if(cov_matrix[i][j] != 0 ){
