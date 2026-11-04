@@ -57,11 +57,10 @@ vector<double> compute_variance(const vector<vector<double>> centered_matrix){
 
     for(size_t i = 0; i<rows; i++){
         for(size_t j = 0; j<cols; ++j){
-            variance[j] += centered_matrix[i][j];
+            variance[j] += pow(centered_matrix[i][j],2);
         }
     }
-    for(size_t j = 0; j<= variance.size(); j++){
-        variance[j] = pow(variance[j],2);
+    for(size_t j = 0; j<variance.size(); j++){
         variance[j] = variance[j]/(rows-1);
     }
 
