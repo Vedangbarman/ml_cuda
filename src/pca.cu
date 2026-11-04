@@ -1,8 +1,8 @@
-#include <iostream>
+#include <cmath>
 #include <vector>
+#include <iostream>
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
-#include <cmath>
 
 using namespace std;
 
@@ -49,7 +49,7 @@ vector<vector<double>> center_data(const vector<vector<double>> matrix, const ve
 }
 
 
-vector<double> variance(const vector<vector<double>>& centered_matrix){
+vector<double> compute_variance(const vector<vector<double>> centered_matrix){
     size_t rows = centered_matrix.size();
     size_t cols = centered_matrix[0].size();
 
@@ -70,7 +70,7 @@ vector<double> variance(const vector<vector<double>>& centered_matrix){
 }
 
 
-vector<double> covariance(const vector<vector<double>> centered_matrix){
+vector<double> compute_covariance(const vector<vector<double>> centered_matrix){
     size_t rows = centered_matrix.size();
     size_t cols = centered_matrix[0].size();
 
@@ -91,4 +91,88 @@ vector<double> covariance(const vector<vector<double>> centered_matrix){
 
     return covariance;
 
+}
+
+vector<vector<double>> create_matrix(const vector<vector<double>> matrix){
+
+    size_t rows = matrix.size();
+    size_t cols = matrix[0].size();
+    vector<vector<double>> cov_matrix;
+    vector<double> mean = compute_mean(vector<vector<double>> (matrix));
+
+    vector<vector<double>> center = center_data(vector<vector<double>> (matrix), vector<double> (mean));
+
+    vector<double> variance = compute_variance(vector<vector<double>> (center));
+
+    vector<double> covariance = compute_covariance(vector<vector<double>> (center));
+
+    for(int i = 0 ; i<rows; i++){
+        cov_matrix[i][i] = variance[i];
+        for(int j = 0; j<cols; j++){
+            if(i != j){
+                cov_matrix[i][j] = covariance[j];
+            }           
+            if(i == j){
+                cov_matrix[i][j+1] = covariance[j];
+            }
+        }
+    }
+
+    return cov_matrix;
+
+}
+
+vector<double> csr_values_finder(vector<vector<double>>(cov_matrix)){
+    size_t rows = cov_matrix.size();
+    size_t cols = cov_matrix[0].size();
+
+    vector<double> csr_values;
+
+    for(int i = 0; i<rows; i++){
+        for(int j = 0; j<cols; j++){
+            if(cov_matrix[i][j] != 0 ){
+                csr_values[i] = cov_matrix[i][j];
+            }
+        }
+    }
+    return csr_values;
+
+}
+
+vector<double> csr_row_finder(vector<vector<double>>(cov_matrix)){
+    size_t rows = cov_matrix.size();
+    size_t cols = cov_matrix[0].size();
+
+    vector<double> csr_rows;
+    for(int i = 0; i<rows; i++){
+        for(int j = 0; j<cols; j++){
+            if(cov_matrix[i][j] != 0 ){
+                csr_rows[i] = i;
+            }
+        }
+    }
+    return csr_rows;
+
+}
+
+
+vector<double> csr_col_finder(vector<vector<double>>(cov_matrix)){
+    size_t rows = cov_matrix.size();
+    size_t cols = cov_matrix[0].size();
+
+    vector<double> csr_cols;
+    for(int i = 0; i<rows; i++){
+        for(int j = 0; j<cols; j++){
+            if(cov_matrix[i][j] != 0 ){
+                csr_cols[i] = j;
+            }
+        }
+    }
+    return csr_cols;
+
+}
+
+
+vector<double> compute_eigen_values(){
+    
 }
