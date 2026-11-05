@@ -78,14 +78,13 @@ vector<double> compute_covariance(const vector<vector<double>> centered_matrix){
     for(size_t i = 0; i<rows; i++){
         for(size_t j = 0; j<cols ; j++){
             if(i<cols){
-                covariance[j] += (centered_matrix[i][j] + centered_matrix[i+1][j]);
+                covariance[j] += pow((centered_matrix[i][j] + centered_matrix[i][j+1]),2);
             }
         }
     }
 
     for(size_t j = 0; j<rows; j++){
-        covariance[j] = pow(covariance[j],2);
-        covariance[j] = covariance[j]/rows-1;
+        covariance[j] = covariance[j]/(rows-1);
     }
 
     return covariance;
