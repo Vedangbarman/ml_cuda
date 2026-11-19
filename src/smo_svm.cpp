@@ -22,122 +22,166 @@ vector<vector<double>> kernel_table(const vector<vector<double>>&data){
     return kernel_matrix;
 }
 
-vector<float> error_store(const vector<vector<double>> & kernel_matrix, double bias, const float & error_tolerance, const vector<float> & labels){
+vector<double> error_store(const vector<vector<double>> & kernel_matrix, const vector<double> & labels){
     if(kernel_matrix.empty()){
         return {};
     }
-    
+    double bias = 0.0;
     size_t rows = kernel_matrix.size();
-    size_t cols = kernel_matrix[0].size();
-    vector<float> alphas(rows,0.0); // shape = 1 by sample size all intiliazed to 0
-    vector<float> error_vector(rows,0.0);
+    vector<double> alphas(rows,0.0); // shape = 1 by sample size all intiliazed to 0
+    vector<double> error_vector(rows,0.0);
     // check kkt conditions 
-    float model_output = 0;
-    float model_error = 0;
-    for(int i = 0; i<rows; i++){
-        for(int j = 0; j<rows;j++){
-            model_output += alphas[i] * labels[i] * kernel_matrix[i][j];
+    double model_output = 0;
+    double model_error = 0;
+    for(size_t i = 0; i<rows; i++){
+        model_output = 0;
+        for(size_t j = 0; j<rows;j++){
+            model_output += alphas[j] * labels[j] * kernel_matrix[j][i];
         }
-        model_error = model_output -labels[i];
-        error_vector.push_back(model_error);
+        model_error = model_output + bias - labels[i];
+        error_vector[i] = model_error;
     }
     return error_vector;
 }
 
 vector<double> compute_alpha(const vector<vector<double>> & kernel_matrix, 
-double bias, const float & error_tolerance, 
-const vector<float> & labels, const float & c, 
-vector<float> error_vector
+const double & error_tolerance, 
+const vector<double> & labels, const double & c, 
+vector<double> error_vector
 ,const int & max_it
 ){
     if(kernel_matrix.empty()){
-        return {};
+        return {-1};
     }
     if(max_it == 0){
-        return {};
+        return {-1};
     }
-    vector<double> error_cache;
     size_t rows = kernel_matrix.size();
-    vector<double> alphas(rows,0.0); // shape = 1 by sample size all intiliazed to 0
+    vector<double> alphas(rows+1,0.0); // shape = 1 by sample size all intiliazed to 0
+    vector<bool> skip(rows, false);
     // check kkt conditions 
+    double bias = 0.0;
     double model_output = 0.0;
     double model_error = 0.0;
     double margin_validation = 0.0;
     double error = 0.0;
     double alpha_a = 0.0;
-    int alpha_a_index = 0;
+    int alpha_a_index = -1;
     // chose alpha a ( first alpha of the pair)
     int operation = 0;
-    int max_op = max_it*rows*kernel_matrix[0].size();
-    while(operation<max_op){
-
-    
-    for(int i = 0; i<rows; i++){
-        for(int j = 0; j<rows;j++){
-            model_output += alphas[i] * labels[i] * kernel_matrix[i][j];
-            operation++;
-        }
-        model_error = model_output -labels[i];
-        margin_validation = model_error*labels[i];
-        if(margin_validation>1*(error_tolerance)){
-            if(alphas[i]>c){
-                alpha_a = alphas[i];
-                alpha_a_index = i;
-                break;
-
+    while(operation<max_it){  
+        alpha_a_index = -1;  
+        for(size_t i = 0; i<rows; i++){
+            if(skip[i]){
+                continue;
+            }
+            model_output = 0; 
+            for(size_t j = 0; j<rows;j++){
+                model_output += alphas[j] * labels[j] * kernel_matrix[j][i];
+                
+            }
+            model_error = model_output + bias - labels[i];
+            error_vector[i] = model_error;
+            margin_validation = model_error*labels[i];
+            if(margin_validation > error_tolerance){
+                if(alphas[i] > 0){
+                    alpha_a = alphas[i];
+                    alpha_a_index = i;
+                    break;
+                }
+            }
+            else if(margin_validation < -error_tolerance){
+                if(alphas[i] < c){
+                    alpha_a = alphas[i];
+                    alpha_a_index = i;
+                    break;
+                }
             }
         }
-        else if(margin_validation<-1*(error_tolerance)){
-            if(alphas[i]<0){
-                alpha_a = alphas[i];
-                alpha_a_index = i;
-                break;
-            }
+        if (alpha_a_index == -1){
+            break;
         }
+        size_t index = 0;
+
+        //chose alpha b 
+        if(model_error < 0){
+            auto max_pos = max_element(error_vector.begin(), error_vector.end());
+            index = max_pos - error_vector.begin();
+        }
+        else{
+            auto min_pos = min_element(error_vector.begin(), error_vector.end());
+            index = min_pos - error_vector.begin();
+        }
+        error = model_error - error_vector[index];
+        
+        // compute clips of [L,H]
+        double L = 0.0;
+        double H = 0.0;
+        if(labels[alpha_a_index] != labels[index]){
+            L = max(0.0, alphas[index] - alpha_a);
+            H = min((double)c, c + alphas[index] - alpha_a);
+        }
+        else{
+            L = max(0.0, alpha_a + alphas[index] - c);
+            H = min((double)c, alpha_a + alphas[index]);
+        }
+        if(L >= H){
+            skip[alpha_a_index] = true;
+            continue;
+        }
+        // calculate eta ( pronounce AY-THA or EE-THA)/ basically caculating second derivative formula is K_aa + K_bb - 2 * K_ab where a = index of first alpha and b of second alpha of the pair
+        
+        double eta = kernel_matrix[alpha_a_index][alpha_a_index] + kernel_matrix[index][index] - 2*kernel_matrix[alpha_a_index][index];
+        if(index == alpha_a_index){
+            skip[alpha_a_index] = true;
+            continue;
+        }
+        if(eta <= 0) {
+            skip[alpha_a_index] = true;
+            continue;
+        }
+        // update alpha_b
+        double alpha_b_new = alphas[index] + (labels[index]*error)/eta;
+
+        // clip eta
+        if(alpha_b_new > H) {
+            alpha_b_new = H;
+        }
+        else if(alpha_b_new < L) {
+            alpha_b_new = L;
+        }
+        // update alpha_a 
+        double alpha_a_new = alpha_a + labels[alpha_a_index]*labels[index]*(alphas[index]-alpha_b_new);
+
+        // update bias
+        double da = alpha_a_new - alpha_a;
+        double db = alpha_b_new - alphas[index];
+        double b1 = bias - model_error - labels[alpha_a_index]*da*kernel_matrix[alpha_a_index][alpha_a_index]
+                                    - labels[index]*db*kernel_matrix[alpha_a_index][index];
+        double b2 = bias - error_vector[index] - labels[alpha_a_index]*da*kernel_matrix[alpha_a_index][index]
+                                            - labels[index]*db*kernel_matrix[index][index];
+        if(alpha_a_new > 0 && alpha_a_new < c){
+            bias = b1;
+        } 
+        else if(alpha_b_new > 0 && alpha_b_new < c){ 
+            bias = b2;
+        }
+        else {
+            bias = (b1 + b2) / 2;
+        }
+        alphas[rows] = bias;
+        //update alpha vector 
+        alphas[alpha_a_index] = alpha_a_new;
+        alphas[index] = alpha_b_new;
+        for(size_t k = 0; k<rows; k++){
+            double out = 0;
+            for(size_t j = 0; j<rows; j++){
+                out += alphas[j] * labels[j] * kernel_matrix[j][k];
+                }
+            error_vector[k] = out + bias - labels[k];
+        }
+        fill(skip.begin(), skip.end(), false);   
+        operation++;
     }
-    int index = 0;
-
-    //chose alpha b 
-    if(model_error<0){
-        auto max_it = max_element(error_vector.begin(), error_vector.end());
-        index = max_it - error_vector.begin();
-        error = abs(model_error - error_vector[index]);
-    }
-    else{
-        auto min_it = min_element(error_vector.begin(), error_vector.end());
-        index = min_it - error_vector.begin();
-        error = abs(model_error - error_vector[index]);
-    }
-    
-    // compute clips of [L,H]
-    double L = max(0.0,(alphas[index] - alpha_a));
-    double H = min(c,(c + alphas[index] - alpha_a));
-      
-
-    // calculate eta ( pronounce AY-THA or EE-THA)/ basically caculating second derivative formula is K_aa + K_bb - 2 * K_ab where a = index of first alpha and b of second alpha of the pair
-    
-    double eta = kernel_matrix[alpha_a_index][alpha_a_index] + kernel_matrix[index][index] - 2*kernel_matrix[alpha_a_index][index];
-    
-    // update alpha_b
-    double alpha_b_new = alphas[index] + (labels[index]*error)/eta;
-
-    // clip eta
-    if(alpha_b_new>L){
-        alpha_b_new = L;
-    }
-    else if(alpha_b_new<H){
-        alpha_b_new = H;
-    }
-
-    // update alpha_a 
-    double alpha_a_new = alpha_a + labels[alpha_a_index]*labels[index]*(alphas[index]-alpha_b_new);
-
-    // update bias
-    bias = bias + error_vector[index] + labels[alpha_a_index]*(alpha_a_new-alpha_b_new) + labels[index]*(alpha_b_new - alphas[index]);
-
-    //update alpha vector 
-    alphas[alpha_a_index] = alpha_a_new;
-    alphas[index] = alpha_b_new;
-
-    }
+    return alphas;
 }   
